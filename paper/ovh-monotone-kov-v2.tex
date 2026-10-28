@@ -1,0 +1,705 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{booktabs,array,tabularx}
+\usepackage{enumitem}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{tikz}
+\usepackage[most]{tcolorbox}
+\usepackage[colorlinks=true,linkcolor=MidnightBlue,citecolor=MidnightBlue,urlcolor=MidnightBlue]{hyperref}
+
+\hypersetup{pdftitle={Star Plucking: Monotone Lower Bounds for k-List Orthogonal Vectors at Logarithmic Dimension},
+  pdfauthor={Patryk Pilichowski},
+  pdfsubject={Work in progress, not verified (version 2)},
+  pdfkeywords={orthogonal vectors, monotone circuit lower bounds, approximation method, fine-grained complexity}}
+\setlist{itemsep=1pt,topsep=3pt}
+\setlength{\parskip}{2pt}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem*{remark}{Remark}
+
+\newtcolorbox{disclaimer}{enhanced,colback=BrickRed!6,colframe=BrickRed!75!black,boxrule=0.8pt,arc=2pt,
+  fonttitle=\bfseries,title={Work in progress: not verified},left=6pt,right=6pt}
+
+\newcommand{\OV}{\mathrm{OV}}
+\newcommand{\Int}{\mathrm{Int}}
+\newcommand{\tInt}{3\mathrm{Int}}
+\newcommand{\kInt}{k\mathrm{Int}}
+\newcommand{\DISJ}{\mathrm{DISJ}}
+\newcommand{\Dz}{\mathcal{D}_0}
+\newcommand{\Do}{\mathcal{D}_1}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\ones}{1^d}
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\core}{\mathrm{core}}
+
+\title{\textbf{Star Plucking: Monotone Lower Bounds for\\$k$-List Orthogonal Vectors at Logarithmic Dimension}}
+\author{Patryk Pilichowski\\
+\small University of Antwerp\\
+\small ORCID: \href{https://orcid.org/0009-0003-8302-6926}{0009-0003-8302-6926}\quad
+Google Scholar: \href{https://scholar.google.com/citations?user=Yjgl4RAAAAAJ}{Yjgl4RAAAAAJ}}
+\date{Version 2, work in progress, 28 October 2026\\
+\small\copyright\ 2026 Patryk Pilichowski, \href{https://creativecommons.org/licenses/by/4.0/}{CC BY 4.0}}
+
+\begin{document}
+\maketitle
+
+\begin{disclaimer}
+\small
+This report records work in progress; it is not peer-reviewed.
+\begin{itemize}[leftmargin=12pt]
+  \item \textbf{AI-generated:} proofs, computations and code were produced by Claude (Anthropic, Claude Opus 5.5)
+    in sessions directed by the author, who has not independently verified the mathematics.
+  \item \textbf{No human review:} the main proofs were checked only by AI referee agents of the same model family
+    (\code{docs/ai-review-log.md}).
+  \item \textbf{No formal verification:} nothing is formalized in Lean; SAT results have no DRAT certificates.
+\end{itemize}
+\textbf{Everything here still needs thorough verification. Do not cite these results as established.}
+\end{disclaimer}
+
+\begin{abstract}
+For every fixed $k\ge2$ and $\varepsilon>0$ we show that, for all large $n$, every monotone circuit deciding
+whether $k$ lists of $n$ Boolean vectors of dimension $d\ge c\log n$ have no orthogonal $k$-tuple needs
+$n^{k-\varepsilon}$ gates, where $c=O_k(\varepsilon^{-k})$. For $k=2$ this is a theorem of Choudhury, Limaye,
+Sreenivasaiah and Srinivasan~\cite{CLSS26}. For $k\ge3$ their bounds need larger, superlogarithmic dimension. The new
+ingredient, \emph{star plucking}, controls approximator conjuncts that share a core vector. It is applied recursively
+over \emph{frames}, each a core together with part of a link. We first give the case $k=3$ in full. We also record
+notes on routes to refuting the Orthogonal Vectors Hypothesis (OVH), motivated by the claimed refutation of
+ETH~\cite{OpenAI26,Anthropic26}: a conditional algorithm for block-CNF with constant block size, a heuristic no-go
+for linear deformation designs, and exact equality ranks of $\DISJ_k$ for $k\le4$. None of this proves or disproves
+OVH.
+\end{abstract}
+
+\section{Introduction}
+
+The Orthogonal Vectors problem $\OV_{n,d}$ asks whether two lists of $n$ vectors in $\{0,1\}^d$ contain an orthogonal
+pair. The \emph{Orthogonal Vectors Hypothesis} (OVH) states that for every $\varepsilon>0$ there is $c$ such that
+$\OV_{n,c\log n}$ has no $O(n^{2-\varepsilon})$ algorithm. Its $k$-list version ($k$-OVH) asks for $n^{k-\varepsilon}$.
+OVH was mainly supported by SETH, which implies it~\cite{Wil05}. Two October 2026 preprints~\cite{OpenAI26,Anthropic26}
+claim $2^{o(n)}$ algorithms for 3-SAT. If correct, they refute ETH and SETH but not OVH, since their running times
+degrade with clause width, and OVH loses its main evidence. This raises two questions: which routes could refute OVH,
+and in which restricted models can it be proved? Theorem~\ref{thm:main} below does not depend on these preprints.
+
+For lists $U_1,\dots,U_k$ of $n$ vectors in $\{0,1\}^d$, let $\kInt_{n,d}(U_1,\dots,U_k)=1$ iff
+$u_1\wedge\dots\wedge u_k\ne0^d$ for every $(u_1,\dots,u_k)\in U_1\times\dots\times U_k$. This is the negation of
+$k$-OV, and it is monotone. A monotone circuit has fan-in-2 AND and OR gates; its inputs are the $knd$ input bits
+and the constants 0 and 1. Its size is its number of gates.
+
+\begin{theorem}[main]\label{thm:main}
+For every fixed $k\ge2$ and $\varepsilon\in(0,1)$ there is $c\le(k+1)(33(k+1)^2/\varepsilon)^k=O_k(\varepsilon^{-k})$
+such that, for all large $n$ and all $d\ge c\log n$, every monotone circuit computing $\kInt_{n,d}$ has at least
+$n^{k-\varepsilon}$ gates. In particular, monotone circuits for $\kInt_{n,d}$ need $n^{k-o(1)}$ gates for every
+$d=\omega(\log n)$.
+\end{theorem}
+
+\paragraph{Relation to prior work.} For $k=2$, Theorem~\ref{thm:main} is~\cite[Thm~5]{CLSS26}. For $k\ge3$,
+\cite{CLSS26} reduce from clique. This gives near-tight monotone bounds at $d=n^{\varepsilon}$~\cite[Thm~4]{CLSS26}
+and, for infinitely many $n$, at $d=\exp((\log n)^{1/2+o(1)})=n^{o(1)}$~\cite[Cor~13]{CLSS26}. They explain why that
+framework cannot reach all $d=\omega(\log n)$, even with optimal clique bounds~\cite[Remark~16]{CLSS26}. To our
+knowledge the logarithmic-dimension case $k\ge3$ is not covered by earlier work. In non-monotone models,
+Lin~\cite{Lin26} proves $n^{\Omega(k)}$ lower bounds for $k$-OV in $\mathrm{AC}^0$ of every fixed depth, for large
+fixed $k$, at dimension $O(k\log n)$. That result is incomparable with Theorem~\ref{thm:main}, which is monotone with
+the tight exponent. Our literature search after July 2026 has been limited.
+
+\paragraph{Contributions.}
+\begin{enumerate}[leftmargin=16pt]
+  \item \textbf{Main result (\S\ref{sec:general}).} Theorem~\ref{thm:main}, proved by recursive star plucking over
+    frames.
+  \item \textbf{The case $k=3$ (\S\ref{sec:main}),} with explicit constants (Theorem~\ref{thm:three}). It introduces
+    the method in its simplest form.
+  \item \textbf{Notes on refutation routes (\S\ref{sec:trackA}):}
+    \begin{itemize}[leftmargin=12pt]
+      \item a conditional algorithm for block-CNF with constant block size (Theorem~\ref{thm:block});
+      \item a heuristic no-go for linear deformation designs (\S\ref{sec:deform});
+      \item exact equality ranks with an LP barrier (Theorem~\ref{thm:eqrank}, Propositions~\ref{prop:k5}
+        and~\ref{prop:lp}).
+    \end{itemize}
+\end{enumerate}
+
+\paragraph{Scope.} Monotone lower bounds do not transfer to general algorithms~\cite{Raz85b,Tar88}. The main theorem
+only shows that refuting $k$-list OVH requires non-monotone steps such as cancellation.
+
+\paragraph{Changes from version 1.}
+\begin{itemize}
+  \item New Theorem~\ref{thm:main} for every fixed $k$ (\S\ref{sec:general}). Version 1's main theorem is now
+    Theorem~\ref{thm:three}.
+  \item The description of~\cite{CLSS26} is corrected. Version 1 said that for $k\ge3$ they reach only
+    $d=n^{\Omega(1)}$ and that they leave the logarithmic case open. In fact their Corollary~13 reaches $d=n^{o(1)}$
+    for infinitely many $n$, and they do not pose the logarithmic case as an open problem.
+  \item Version 1's corollary on unbalanced OV ($n$ versus $n^2$ vectors) is withdrawn. A direct run of the
+    two-list argument of~\cite{CLSS26} with unequal list sizes very likely gives it, so we do not claim it.
+  \item In \S\ref{sec:trackA}: Theorem~\ref{thm:block} is restated for decision, with its hypothesis derived from the
+    claimed refutation of ETH via~\cite{IPZ01}, and unproved remarks after it are removed. The deformation no-go is
+    demoted to a heuristic. The bound $r(5)\le5$ and the earlier 0/1 searches are attributed to~\cite{Wil24}, explicit
+    certificates for the upper bounds are added, and the \#OV record is updated to~\cite{Ye26}.
+  \item Exposition: all choices in the construction are fixed deterministic rules, the reveal order of
+    Lemma~\ref{lem:ork} rests on a stated lemma (Lemma~\ref{lem:seq}), related work~\cite{Lin26} is added, and
+    notation clashes are removed.
+\end{itemize}
+
+\section{The case of three lists}\label{sec:main}
+
+For lists $U,V,Z$ of $n$ vectors in $\{0,1\}^d$, $\tInt_{n,d}(U,V,Z)=1$ iff $u\wedge v\wedge z\ne0^d$ for all
+$(u,v,z)\in U\times V\times Z$.
+
+\begin{theorem}\label{thm:three}
+For every $\varepsilon\in(0,1)$ there is $c=O(\varepsilon^{-3})$ such that, for all large $n$ and all $d\ge c\log n$,
+every monotone circuit computing $\tInt_{n,d}$ has at least $n^{3-\varepsilon}$ gates.
+\end{theorem}
+
+\subsection{Overview}
+We use Razborov's approximation method~\cite{Raz85,AB87} in the form of~\cite{CLSS26}. Each gate is replaced by an
+\emph{approximator}: a conjunction of monotone pieces, each reading a few vectors. Errors are measured on a
+distribution $\Dz$ of 0-inputs and a distribution $\Do$ of 1-inputs. For two lists, CLSS use pieces that each read
+one vector. For three lists, one-vector pieces lose a factor of only $n^{-2}$ at OR gates, which caps the bound at
+about $n^2$, so pieces must read two vectors. This creates a new failure mode, \emph{stars}: many pieces $B_i(u,v_i)$
+sharing a core $u$. When two stars with the same core meet at an OR gate, $\Theta(n^2)$ three-vector pieces must be
+dropped, at a $\Dz$-cost of $\Theta(1/n)$ per gate. \emph{Star plucking} (conditions (A3)--(A4)) fixes this.
+\begin{itemize}
+  \item For each value $w$ of the core, petals that rarely fail under $\Do$ are switched off. This is cheap by
+    Lemma~\ref{lem:clss}.
+  \item A one-vector check $Q_u(w)$, ``few frequently-failing petals'', is added. This is cheap on $\Do$, because
+    many such petals make the star almost surely~0 anyway.
+\end{itemize}
+After plucking, the petal that matters on a $\Dz$ sample is a bad one only with probability $\approx1/n$. That restores
+an $n^{-3+o(1)}$ error per gate.
+
+\subsection{Distributions}
+$\Do=\mu_p$, i.e.\ each bit is 1 independently with probability $p$. By a union bound,
+$\Pr_{\Do}[\tInt=0]\le n^3(1-p^3)^d\le\frac12$ once $d\ge(3\ln n+1)/p^3$.
+
+$\Dz$: pick indices $a_U,a_V,a_Z\in[n]$ uniformly and call the vectors with these indices \emph{chosen}. For each
+coordinate $j$ independently, pick $L_j\in\{U,V,Z\}$ uniformly. The chosen vector of list $L_j$ gets 0 at $j$, the
+other two chosen vectors get 1, and
+all unchosen vectors are $\ones$. Every sample is a 0-input.
+
+\begin{lemma}\label{lem:d0}
+\begin{enumerate}[label=(\roman*)]
+  \item The indices are independent of the contents.
+  \item Given the indices, each chosen vector has law $\mu_{2/3}$.
+  \item Given the indices, any two chosen vectors jointly dominate $\mu_{1/2}$ on their $2d$ bits.
+  \item Given the indices and a chosen $x$, another chosen $y$ is a product distribution with $y_j=1$ where $x_j=0$,
+    and $\Pr[y_j=1]=\frac12$ where $x_j=1$.
+\end{enumerate}
+\end{lemma}
+\begin{proof}
+(i), (ii) and (iv) follow from the construction; (ii) and (iv) are products with marginals $\ge\frac12$. For (iii),
+couple one coordinate. The pair is uniform on $\{(1,1),(1,0),(0,1)\}$. Map the points $(1,1),(1,0),(0,1)$ of
+$\mu_{1/2}^{\otimes2}$ to themselves, and split $(0,0)$ into three masses of $\frac1{12}$, one to each point.
+\end{proof}
+
+\begin{lemma}[{\cite[Lemma 22]{CLSS26}}]\label{lem:clss}
+For monotone $B$ and $0<p<q<1$, $\Pr_{\mu_q}[B=0]\le\Pr_{\mu_p}[B=0]^{\lfloor q/p\rfloor}$. Hence, with
+$t:=\lfloor1/(2p)\rfloor$, every $\nu$ dominating $\mu_{1/2}$ satisfies $\Pr_\nu[B=0]\le\Pr_{\mu_p}[B=0]^t$.
+\end{lemma}
+
+\subsection{Approximators and star plucking}
+A \emph{slot} is a set $J$ of one or two vectors from distinct lists. A \emph{conjunct on $J$} is a monotone function
+$B_J$ of the bits of $J$ that is \emph{saturated}: $B_J=1$ whenever some vector of $J$ equals $\ones$. Property
+\textbf{(P)} means $\Pr_{\Do}[B_J=0]\ge\delta$. Under $\Dz$, a saturated conjunct can be 0 only if all of its vectors
+are chosen. In particular, for conjuncts $B_J$ and $B'_{J'}$ of two approximators, $B_J\vee B'_{J'}\equiv1$ on $\Dz$
+whenever $J\cup J'$ repeats a list.
+
+\begin{definition}\label{def:approx}
+An \emph{approximator} is a constant, or $F=\bigwedge_{J\in\mathcal J}B_J$ (one conjunct per slot) with a set $T$ of
+fewer than $2M$ \emph{cores}, such that:
+\begin{enumerate}[label=(A\arabic*)]
+  \item every conjunct satisfies (P);
+  \item every slot meets $T$, and each 2-slot $J$ is assigned the core $\core(J)$: the vector of $J\cap T$ from the
+    first of its lists in the order $U,V,Z$. The 2-slots assigned to $u$ are
+    the \emph{petals} of $u$; their other vectors are distinct.
+  \item \emph{(plucked)} for a petal $J=\{u,x\}$ let $\beta_J(w):=\Pr_{x\sim\mu_p}[B_J(w,x)=0]$, which is
+    nonincreasing in $w$. Then $\beta_J(w)\in\{0\}\cup(\eta,1]$ for all $w$.
+  \item with $Q_u(w):=[\#\{J:\beta_J(w)>\eta\}<\theta/\eta]$ (monotone, $Q_u(\ones)=1$): either $B_{\{u\}}\le Q_u$
+    (\emph{enforced}) or $\Pr_{\mu_p}[Q_u=0]<\delta$ (\emph{virtual}).
+\end{enumerate}
+\end{definition}
+
+\paragraph{Normalization $N(G)$} of a conjunction $G$ of saturated conjuncts:
+\begin{enumerate}
+  \item Drop conjuncts violating (P).
+  \item Take the maximal family $\mathcal M$ of conjuncts with disjoint slots chosen greedily in a fixed order of the
+    slots. If $|\mathcal M|\ge M$, output 0.
+    Otherwise set $T=\bigcup\mathcal M$ and assign cores.
+  \item \emph{Pluck}: replace each petal $B_J$ by $B_J\vee[\beta_J(u)\le\eta]$. Then, if
+    $\Pr_{\mu_p}[Q_u=0]\ge\delta$, AND $Q_u$ into $B_{\{u\}}$, creating $B_{\{u\}}:=Q_u$ if that conjunct is absent
+    (also if it was dropped in step~1); otherwise $Q_u$ is virtual.
+  \item Drop petals that now violate (P). This only raises $Q_u$, so (A4) is preserved.
+\end{enumerate}
+
+\paragraph{Gates.}
+\begin{itemize}
+  \item Leaves are their own approximators.
+  \item Constant children are handled exactly: $\mathrm{AND}(0,\cdot)=0$, $\mathrm{AND}(1,F)=F$,
+    $\mathrm{OR}(1,\cdot)=1$, $\mathrm{OR}(0,F)=F$.
+  \item AND: $N(F_g\wedge F_h)$, merging equal slots.
+  \item OR: for $F_g=\bigwedge B_J$ and $F_h=\bigwedge B'_{J'}$, $N(G)$ with $G=\bigwedge(B_J\vee B'_{J'})$ over the
+    pairs for which $J\cup J'$ is a slot, so
+    $G\ge F_g\vee F_h$.
+\end{itemize}
+
+\subsection{Error analysis}
+At a gate with output $A$, the $\Dz$-error is $[A=1,F_g\circ F_h=0]$ and the $\Do$-error is
+$[A=0,F_g\circ F_h=1]$.
+
+\begin{lemma}[normalization]\label{lem:norm}
+If $M\le n$ and $G$ has $\le4M$ 1-slots and $\le8Mn+4M^2$ 2-slots (true at every gate), then
+$\Pr_{\Dz}[N(G)=1,G=0]\le(40M\delta^t+4M\eta^t)/n$ and $\Pr_{\Do}[N(G)=0,G=1]\le(1-\delta)^M+2Me^{-\theta}$.
+\end{lemma}
+\begin{proof}
+\emph{Drops.} A dropped conjunct is 0 on $\Dz$ only if its slot is chosen (probability $n^{-|J|}$), and then with
+probability $\le\delta^t$ (Lemmas~\ref{lem:d0}(ii)/(iii) and~\ref{lem:clss}). In total this is $\le20M\delta^t/n$.
+
+\emph{Switch-off.} A change needs $u,x$ chosen and $B_J(u,x)=0$ with $\beta_J(u)\le\eta$. Given $u$ this has
+probability $\le\eta^t$ (Lemmas~\ref{lem:d0}(iv) and~\ref{lem:clss}). Over fewer than $2M$ cores with $\le2n$ petals
+each, this is $\le4M\eta^t/n$.
+
+\emph{Truncation.} The members of $\mathcal M$ are independent under $\Do$, each failing with probability
+$\ge\delta$.
+
+\emph{Enforcing $Q_u$.} Given $u$ with $Q_u(u)=0$, at least $\theta/\eta$ petals with distinct, independent partner
+vectors each fail with probability $>\eta$. So all of them equal 1 with probability $\le e^{-\theta}$.
+\end{proof}
+
+\begin{lemma}[OR gate]\label{lem:or}
+$\Pr_{\Dz}[G=1,F_g=F_h=0]\le4M\delta^t/n+26M^2(\theta/\eta)^2/n^3$.
+\end{lemma}
+\begin{proof}
+Let $\mathcal V$ be the event that some chosen core with a \emph{virtual} $Q_u$ has $Q_u(u)=0$. Then
+$\Pr[\mathcal V]\le4M\delta^t/n$. Work outside $\mathcal V$, on a sample with $G=1$ and $F_g=F_h=0$.
+
+Failing conjuncts lie inside the chosen triple $C$. If failing $J$ (of $F_g$) and $J'$ (of $F_h$) had
+$J\cup J'\subsetneq C$, then $B_J\vee B'_{J'}$ would be a failing conjunct of $G$. So every failing pair spans $C$.
+
+If a side is a petal of a core $u$ with $Q_u(u)=0$, then $Q_u$ is enforced, so $B_{\{u\}}$ fails too, and replacing
+that side by $\{u\}$ yields another failing pair, which must also span. Two single vectors cannot span, so we end
+with either (a)~a single vector against a petal whose core passes $Q$, or (b)~two petals whose cores pass $Q$.
+
+A failing petal whose core passes $Q$ is moderate ($\beta>\eta$), and fewer than $\theta/\eta$ petals per core value
+are moderate. By Lemma~\ref{lem:d0}(i), the chosen vector of another list is one of them with probability
+$<\theta/(\eta n)$.
+
+Two spanning 2-slots share exactly one vector. Counting the configurations:
+\begin{itemize}
+  \item (a): $\le2(2M)^2$ configurations, each with probability $\le n^{-2}\theta/(\eta n)$;
+  \item (b), same core on both sides: $<2M$ configurations, each $\le n^{-1}(\theta/(\eta n))^2$;
+  \item (b), the core of one side is a petal of the other: $\le2(2M)^2$, each $\le n^{-2}\theta/(\eta n)$;
+  \item (b), a common petal: $\le(2M)^2$, each $\le n^{-2}\theta/(\eta n)$.
+\end{itemize}
+The total is $\le26M^2(\theta/\eta)^2/n^3$.
+\end{proof}
+
+\begin{proof}[Proof of Theorem~\ref{thm:three}]
+Let $\Phi$ be a monotone circuit for $\tInt_{n,d}$ with $|\Phi|$ gates and output approximator $F$. By induction over
+the gates, $F\ge\Phi$ outside the union of the $\Do$-errors, and $F\le\Phi$ outside the union of the $\Dz$-errors.
+\begin{itemize}
+  \item If $F\equiv0$, then $\frac12\le|\Phi|[(1-\delta)^M+2Me^{-\theta}]$.
+  \item Otherwise every conjunct meets $T$, so $\Pr_{\Dz}[F=0]<2M/n\le\frac12$. Hence $\frac12\le|\Phi|\varepsilon_0$
+    with $\varepsilon_0=(44M\delta^t+4M\eta^t)/n+26M^2(\theta/\eta)^2/n^3$.
+\end{itemize}
+Take $t=\lceil64/\varepsilon\rceil$, $p=1/(2t)$, $M=n^{\varepsilon/8}$, $\theta=n^{\varepsilon/16}$,
+$\delta=n^{-\varepsilon/16}$ and $\eta=n^{-4/t}$. Then $\delta^t,\eta^t\le n^{-4}$ and $\theta/\eta\le n^{\varepsilon/8}$,
+so $\varepsilon_0\le27n^{-3+\varepsilon/2}$ and $(1-\delta)^M\le e^{-n^{\varepsilon/16}}$. Therefore
+$|\Phi|\ge\min\{e^{n^{\varepsilon/16}}/(6n^{\varepsilon/8}),\,n^{3-\varepsilon/2}/54\}\ge n^{3-\varepsilon}$ for large $n$,
+with $c=4(2t)^3=O(\varepsilon^{-3})$.
+\end{proof}
+
+\begin{remark}
+For two lists every 2-slot spans, only 1-slots survive, and the argument reduces essentially to~\cite{CLSS26}. (One
+difference: truncation here uses a maximal disjoint family and also runs at OR gates.) For $k\ge4$, conjuncts read up
+to $k-1$ vectors. Moderate links of a core can then share vectors, so they are no longer independent under $\Do$.
+Section~\ref{sec:general} plucks recursively to handle this.
+\end{remark}
+
+\section{Every fixed number of lists}\label{sec:general}
+
+We prove Theorem~\ref{thm:main}. Fix $k\ge2$ and $\varepsilon$. Throughout, $A_k,\Lambda_k$ denote constants depending only
+on $k$. The parameters are
+\[
+t:=\lceil16(k+1)^2/\varepsilon\rceil,\quad p:=\tfrac1{2t},\quad M:=n^{\varepsilon/8},\quad
+\delta:=n^{-\varepsilon/16},\quad \theta:=n^{\varepsilon/(8(k-1))},\quad \eta:=n^{-(k+1)/t}.
+\]
+Then $\eta^t=n^{-(k+1)}$ and $\delta^t\le n^{-(k+1)^2}$. Also $(k+1)/t\le\varepsilon/(16(k+1))\le\varepsilon/(8(k-1))$,
+so $\theta/\eta\le n^{\varepsilon/(4(k-1))}$ and $M^2(\theta/\eta)^{k-1}\le n^{\varepsilon/2}$.
+
+\subsection{Overview}
+Conjuncts now read up to $k-1$ vectors. For a core $u$, the moderate links (those that fail often under $\Do$) can
+form a sunflower $\{x_0,y_j\}$ with $n$ petals sharing $x_0$. These links are not independent under $\Do$, so the
+$e^{-\theta}$ argument of Lemma~\ref{lem:norm} fails. Yet the chosen link lies in the sunflower with probability
+$\approx1/n$, which is too large. The fix is to pluck again one level down, at the \emph{frame} $(u,\{x_0\})$.
+In general a frame is a core $u$ with a set $X$ strictly inside some link of $u$. Each frame gets its own check
+$Q_{u,X}$, built from a maximum family of moderate links with pairwise disjoint \emph{sub-links} $\ell\setminus X$.
+Frames are processed from the deepest level up. At an OR gate, the chosen vectors of a failing conjunct are confined
+one at a time to small hitting sets $H_{u,X}$ along a chain $\emptyset=X_0\subsetneq X_1\subsetneq\cdots$, which
+gives the error $n^{-k+o(1)}$. For $k=3$ the only frames are $(u,\emptyset)$, and the construction is that
+of~\S\ref{sec:main}.
+
+\subsection{Distributions}
+$\Do=\mu_p$. Then $\Pr_{\Do}[\kInt=0]\le n^k(1-p^k)^d\le n^ke^{-p^kd}\le1/n<\frac12$ once $d\ge(k+1)\ln n/p^k$, so
+$c:=(k+1)/p^k=(k+1)(2t)^k\le(k+1)(33(k+1)^2/\varepsilon)^k$ suffices.
+
+$\Dz$: draw \emph{chosen contents} $\gamma_1,\dots,\gamma_k\in\{0,1\}^d$ as follows. At each coordinate independently, a
+uniformly random one of the $k$ gets 0 and the others get 1. Independently, draw uniform indices $a_1,\dots,a_k\in[n]$.
+Vector $a_i$ of list $i$ gets content $\gamma_i$, and every other vector is $\ones$. Let $C$ be the chosen $k$-tuple. Every
+sample is a 0-input.
+
+\begin{lemma}\label{lem:dom}
+\begin{enumerate}[label=(\roman*)]
+  \item The indices are independent of the contents.
+  \item Let $S$ be a set of chosen vectors. Given the indices and the contents of $S$, any set $Y$ of further chosen
+    vectors with $|S|+|Y|\le k-1$ has a law on its $|Y|d$ bits that dominates $\mu_{1/2}^{\otimes|Y|}$.
+\end{enumerate}
+\end{lemma}
+\begin{proof}
+(i) holds by construction. For (ii), the law is a product over coordinates, so it suffices to couple one coordinate.
+Where $S$ has a zero, $Y$ is all ones. Otherwise the zero lies uniformly among the $r:=k-|S|$ chosen vectors outside
+$S$. With $m:=|Y|\le r-1$, the pattern of $Y$ is the single-zero pattern $e_i$ with probability $1/r$ for each
+$i\in Y$, and $1^m$ with probability $(r-m)/r$. Let $U\neq\emptyset$ be an up-set and $A:=\{i:e_i\in U\}$. Every
+$P\in U$ has its zeros inside $A$, since the single-zero pattern at any zero of $P$ dominates $P$. Hence
+$\mu_{1/2}^m(U)\le2^{|A|-m}$, while our law gives $U$ mass $(r-m+|A|)/r\ge(1+|A|)/(m+1)$. With $b:=m-|A|$ we need
+$2^{-b}\le1-b/(m+1)$ on $[0,m]$. This holds because the right side is linear and $2^{-b}$ is convex, with equality at
+$b=0$ and $2^{-m}\le1/(m+1)$ at $b=m$. Strassen's theorem gives a monotone coupling.
+\end{proof}
+
+At $|S|+|Y|=k$ the domination fails. This case is never used.
+
+\subsection{Approximators and frames}
+A \emph{slot} is a set of $1$ to $k-1$ vectors from distinct lists. Conjuncts are monotone and saturated, and (P)
+means $\Pr_{\Do}[B=0]\ge\delta$, as in~\S\ref{sec:main}.
+
+\begin{definition}\label{def:approxk}
+An \emph{approximator} is a constant, or a conjunction $F=\bigwedge_JB_J$ with one conjunct per slot and a set $T$
+of fewer than $(k-1)M$ \emph{cores}, such that:
+\begin{enumerate}[label=(B\arabic*)]
+  \item every conjunct satisfies (P);
+  \item every slot meets $T$. Each slot with $|J|\ge2$ is assigned the core $\core(J)$, the vector of $J\cap T$ in the
+    lowest-numbered list, and has \emph{link} $\ell(J):=J\setminus\{\core(J)\}$. 1-slots are never assigned, switched off or dropped after step~1 of
+    normalization;
+  \item $F$ is the output of the normalization below.
+\end{enumerate}
+\end{definition}
+
+\paragraph{Frames.} A \emph{frame} is a pair $(u,X)$ with $u\in T$ and $X\subsetneq\ell(J)$ for some slot $J$
+assigned to $u$. Its \emph{level} is $|X|\in\{0,\dots,k-3\}$, and its \emph{frame slot} is $K(u,X):=\{u\}\cup X$, of
+size $\le k-2$. A slot $J$ is \emph{in} $(u,X)$ if $\core(J)=u$ and $X\subsetneq\ell(J)$. Its \emph{sub-link} is
+$\ell(J)\setminus X$, which is nonempty and has size $\le k-2-|X|$. Given conjuncts $B$, a slot $J$ in $(u,X)$, and
+values $(w,v_X)$ of $u$ and $X$, let
+\[
+\beta^X_J(w,v_X):=\Pr_{\text{sub-link}\sim\mu_p}\big[B_J(w,v_X,\cdot)=0\big].
+\]
+This is nonincreasing in $(w,v_X)$. Call $J$ \emph{moderate} at $(w,v_X)$ if $\beta^X_J>\eta$. Define:
+\begin{itemize}
+  \item $\nu_{u,X}(w,v_X)$: the maximum number of moderate slots in $(u,X)$ with pairwise disjoint sub-links;
+  \item $Q_{u,X}:=[\nu_{u,X}<\theta/\eta]$. It is monotone because $\nu$ is nonincreasing, and saturated because a
+    $\ones$ argument makes every $\beta$ zero;
+  \item $H_{u,X}(w,v_X)$: the union of the sub-links of the maximal disjoint family of moderate slots chosen greedily
+    in a fixed order of the slots. It meets every moderate sub-link, and $|H_{u,X}|<(k-2-|X|)\theta/\eta$ whenever
+    $Q_{u,X}(w,v_X)=1$.
+\end{itemize}
+\paragraph{Determinism.} Every choice in the construction (the disjoint family in step~2 below, the cores, the
+families defining $H_{u,X}$, and the anchors in Lemma~\ref{lem:ork}) is made by a fixed deterministic rule. So every
+set and function below is a deterministic function of the circuit and of its stated arguments, which the union
+bounds rely on.
+
+\subsection{Normalization}
+$N(G)$, for a conjunction $G$ of saturated conjuncts with at most $A_kMn^{r-1}$ slots of each size $r$:
+\begin{enumerate}
+  \item Drop the conjuncts violating (P).
+  \item Take the maximal family of pairwise disjoint slots chosen greedily in a fixed order. If it has $\ge M$
+    members, output 0. Otherwise let $T$ be its union and assign cores.
+  \item For the stages $s=k-3,k-4,\dots,0$ (deepest first): let $B^{(s)}$ be the conjuncts at the start of stage
+    $s$. The frames of stage $s$ are the level-$s$ frames determined by the slots present at that moment, i.e.\ the
+    $G$-slots surviving step~1 and the slots created at deeper stages. For every such frame $(u,X)$, with all
+    quantities computed from $B^{(s)}$:
+    \begin{enumerate}[label=(\alph*)]
+      \item \emph{switch-off}: for every slot $J$ in $(u,X)$, replace $B_J$ by $B_J\vee[\beta^X_J(w,v_X)\le\eta]$;
+      \item \emph{enforce}: if $\Pr_{\mu_p}[Q_{u,X}=0]\ge\delta$, AND $Q_{u,X}$ into the conjunct on $K(u,X)$. If
+        that conjunct is absent, including when it was dropped in step~1, create it as $Q_{u,X}$ with the fixed core
+        rule. Otherwise $Q_{u,X}$ is \emph{virtual}.
+    \end{enumerate}
+  \item Drop the slots of size $\ge2$ that now violate (P).
+\end{enumerate}
+Gates are handled as in~\S\ref{sec:main}. A leaf is an input bit, bit $j$ of some vector $v$. Its approximator is the 1-slot
+conjunct on $\{v\}$ that reads this bit, with $T=\{v\}$; it satisfies (P) since $1-p\ge\delta$. For OR,
+$G:=\bigwedge(B_J\vee B'_{J'})$ over the pairs for which $J\cup J'$ is a
+slot. Omitting the other pairs only raises $G$, so $G\ge F_g\vee F_h$. Pairs that repeat a list are $\equiv1$ on
+$\Dz$; those with $|J\cup J'|=k$ are charged in Lemma~\ref{lem:ork}.
+
+\begin{lemma}[normal form]\label{lem:nf}
+Every enforcement on a slot $J$ happens at stage $|J|-1$, and every switch-off on $J$ at a stage $\le|J|-2$. Hence
+the final conjunct is
+\[
+\mathrm{final}_J=\Big(B_J\wedge\bigwedge\text{enforced }Q\text{'s on }J\Big)\vee\bigvee\text{indicators on }J,
+\]
+with $B_J:=1$ for a created slot. A slot created at stage $s$ joins only frames of level $<s$, and no stage-$s$ frame
+gains members after stage $s$.
+\end{lemma}
+\begin{proof}
+An enforcement on $J$ needs $J=K(u,X)$ with $|X|=|J|-1$. A switch-off needs $X\subsetneq\ell(J)$, so
+$|X|\le|J|-2$. A created slot $K$ has $|\ell(K)|=s$.
+\end{proof}
+
+\paragraph{Invariant (I).} If the final conjunct of a slot $J$ with core $u$ is 0 at some values, then for every
+$X\subsetneq\ell(J)$ the stage-$|X|$ indicator is 0 there. So $J$ is moderate in $(u,X)$ with respect to
+$B^{(|X|)}$, the family that defines $\nu_{u,X}$ and $H_{u,X}$. This follows from Lemma~\ref{lem:nf}.
+
+\paragraph{Sizes.} A normalized approximator has at most $|T|\binom{k-1}{r-1}n^{r-1}$ slots of size $r$, created slots
+included. AND at most doubles this. At OR, each slot of $G$ contains either a common core, or a core of $T_g$ and a
+different one of $T_h$. So $G$ has at most $(k-1)M\binom{k-1}{r-1}n^{r-1}+(k-1)^2M^2\binom{k-2}{r-2}n^{r-2}\le
+A_kMn^{r-1}$ slots of size $r$, for $M\le n$ and $A_k:=2k^22^k$.
+
+\subsection{Error analysis}
+
+\begin{lemma}[normalization]\label{lem:normk}
+$\Pr_{\Dz}[N(G)=1,G=0]\le \Lambda_kM(\delta^t+\eta^t)/n$ and
+$\Pr_{\Do}[N(G)=0,G=1]\le(1-\delta)^M+\Lambda_kMn^{k-3}e^{-\theta}$.
+\end{lemma}
+\begin{proof}
+\emph{$\Dz$.} If $G=0$, some $G$-slot $J\subseteq C$ has $B_J=0$ at the chosen values, which has probability
+$n^{-|J|}$, and $N(G)=1$ needs the final conjunct on $J$ to be 1. If $J$ was not dropped and no indicator on $J$ fires at the
+chosen values, then by Lemma~\ref{lem:nf} the final conjunct is $\le B_J=0$ there. If an indicator fires, let $s^*$ be the deepest stage at which one fires, in frame $(u,X)$.
+By Lemma~\ref{lem:nf}, $B^{(s^*)}_J=0$ at the chosen values while $\beta^X_J\le\eta$. Given the contents of
+$\{u\}\cup X$, the sub-link dominates $\mu_{1/2}$ (Lemma~\ref{lem:dom}, $|J|\le k-1$). Lemma~\ref{lem:clss} applied
+to the fixed monotone function $y\mapsto B^{(s)}_J(w,v_X,y)$ bounds each event
+$[B^{(s)}_J(\text{chosen})=0\wedge\beta^X_J\le\eta]$ by $\eta^t$. There are at most $2^{k-2}$ such $(s,X)$ per slot.
+A dropped conjunct that is 0 costs $\le\delta^t$ in the same way. Summing $n^{-r}\cdot A_kMn^{r-1}(2^{k-2}+2)$ over
+$r\le k-1$ gives the bound.
+
+\emph{$\Do$.} Truncation costs $(1-\delta)^M$, since the disjoint members are independent. Otherwise $N(G)\ge
+G\wedge\bigwedge(\text{enforced }Q\text{'s})$, so suppose $G=1$, and let $(u,X)$ be at the deepest stage $s$ with a
+failing enforced $Q$. Every $B^{(s)}$-conjunct is then 1. On $G$-slots, $B^{(s)}\ge B\wedge(\text{deeper enforced
+}Q\text{'s})=1$. Created slots are ANDs of passing $Q$'s. But $Q_{u,X}(w,v_X)=0$ gives $\ge\theta/\eta$ moderate
+slots whose sub-links are pairwise disjoint and disjoint from $\{u\}\cup X$, since $u=\core(J)\notin\ell(J)$. The family
+is fixed by $(w,v_X)$, and $B^{(s)}_J(w,v_X,\cdot)$ reads only its sub-link. So
+$\Pr[Q_{u,X}=0\wedge\text{all members}=1]=\mathbb E\big[1\{Q_{u,X}=0\}\prod_J(1-\beta^X_J)\big]\le
+(1-\eta)^{\theta/\eta}\le e^{-\theta}$. There are at most $|T|\sum_{s\le k-3}\binom{k-1}{s}n^s\le \Lambda_kMn^{k-3}$
+frames.
+\end{proof}
+
+\begin{lemma}[sequential confinement]\label{lem:seq}
+Let $I_1,\dots,I_m$ be independent and uniform on $[n]$. For each $j$, let $R_j$ be a set of size at most $\rho_j$
+that is a function of $I_1,\dots,I_{j-1}$. Then $\Pr[I_j\in R_j\text{ for all }j]\le\prod_j\rho_j/n$.
+\end{lemma}
+\begin{proof}
+By induction on $m$. Given $I_1,\dots,I_{m-1}$, the set $R_m$ is fixed and $I_m$ is uniform, so
+$\Pr[I_m\in R_m\mid I_1,\dots,I_{m-1}]\le\rho_m/n$.
+\end{proof}
+
+\begin{lemma}[OR gate]\label{lem:ork}
+$\Pr_{\Dz}[G=1,F_g=F_h=0]\le \Lambda_kM(\delta^t+\eta^t)/n+\Lambda_kM^2(\theta/\eta)^{k-1}/n^k$.
+\end{lemma}
+\begin{proof}
+\emph{Excluded events.} For each frame $(u,X)$ of $g$ or $h$ with $K:=K(u,X)\subseteq C$ (probability $n^{-|K|}$,
+$|K|\le k-2$), exclude:
+\begin{itemize}
+  \item[(x1)] $Q_{u,X}$ is virtual and $Q_{u,X}(\text{chosen})=0$. By Lemma~\ref{lem:dom} with $Y=K$ and
+    Lemma~\ref{lem:clss}, this is $\le\delta^t$;
+  \item[(x2)] $Q_{u,X}$ is enforced, $Q_{u,X}(\text{chosen})=0$, and a shallower indicator on $K$ fires at the chosen
+    values. As in Lemma~\ref{lem:normk}, take the union over the $\le2^{|K|-1}$ fixed pairs $(s,X')$ of the events
+    $[B^{(s)}_K(\text{chosen})=0\wedge\beta^{X'}_K\le\eta]$, conditioned on the contents of $\{\core(K)\}\cup X'$. This is
+    $\le2^{k}\eta^t$;
+  \item[(x3)] $Q_{u,X}$ is enforced, $Q_{u,X}(\text{chosen})=0$, no indicator on $K$ fires, and $K$ was dropped in
+    step~4. The conjunct of $K$ is then 0 at the chosen values, so this is $\le\delta^t$.
+\end{itemize}
+Over at most $\Lambda_kMn^{|K|-1}$ frames of each size, these cost $\le \Lambda_kM(\delta^t+\eta^t)/n$. Work outside them, on
+$E:=[G=1,F_g=F_h=0]$.
+
+\emph{Spanning.} All final conjuncts are saturated ($B_J$, every $Q$, and every indicator, since a $\ones$ argument
+makes $\beta=0$). So a failing conjunct has its slot inside $C$. A \emph{failing pair} is $(J,J')$ with $J$ a slot
+of $F_g$, $J'$ a slot of $F_h$, and both final conjuncts 0. If $J\cup J'\subsetneq C$, it is a slot and $G$'s
+conjunct on it fails. So every failing pair spans $C$.
+
+\emph{Minimal pair.} Fix a failing pair with $|J|+|J'|$ minimal. Each side is \emph{terminal}: for its core $u$ and
+every $X\subsetneq\ell(J)$, $Q_{u,X}(\text{chosen})=1$. Otherwise, by (x1) that $Q$ is enforced on
+$K(u,X)\subsetneq J$. By (x2) and (x3) the final conjunct on $K$ exists and is 0, so $(K,J')$ is a smaller failing
+pair. For $X=\emptyset$, $K=\{u\}$ is a 1-slot, which is never switched or dropped. A 1-slot side $\{v\}$ has $v\in T$;
+we treat $v$ as its core, with an empty chain.
+
+\emph{Chains.} Let $J$ be a terminal side of $g$ with core $u$ and content $w$. Set $X_0:=\emptyset$. While
+$X_i\subsetneq\ell(J)$, $J$ is moderate in $(u,X_i)$ by (I), so its sub-link meets $H^g_{u,X_i}(w,v_{X_i})$ in an
+\emph{anchor} $h_{i+1}$; set $X_{i+1}:=X_i\cup\{h_{i+1}\}$. The chain enumerates $\ell(J)$. Define the confining set
+\[
+R_{i+1}:=\begin{cases}H^g_{u,X_i}(w,v_{X_i})&\text{if }Q_{u,X_i}(w,v_{X_i})=1,\\\emptyset&\text{otherwise.}\end{cases}
+\]
+It has size $<(k-2)\theta/\eta$ on every sample. It is a function of the identities and contents of
+$u,h_1,\dots,h_i$, and $h_{i+1}\in R_{i+1}$ on the event, by terminality.
+
+\emph{Counting.} Condition on all chosen contents. By Lemma~\ref{lem:dom}(i), the indices of the $k$ lists are then
+independent and uniform. The \emph{shape} of a side is its core list, its link length and the ordered lists of its
+anchors. It takes at most $k\sum_{m=0}^{k-2}(k-1)!/(k-1-m)!\le e\cdot k!$ values. A pair $\sigma$ of shapes fixes an
+order of the lists: the core of $J$, then $J$'s chain, then the core of $J'$ if it is new, then $J'\setminus J$ in the
+order of $J'$'s chain. Let $E_\sigma$ be the event that each index, in this order, lies in its \emph{confining set}:
+$T_g$ or $T_h$ (restricted to the list) for a core, and $R_{i+1}$ for an anchor. Elements that appear again are not
+confined again. By the minimal-pair and chain arguments, $E\setminus\mathcal X\subseteq\bigcup_\sigma E_\sigma$. Each
+confining set is a function of the contents and of the indices earlier in the order, because a predecessor in $J'$'s
+chain lies in $J$ or comes earlier in that chain. So Lemma~\ref{lem:seq} applies: a core contributes $|T|/n<(k-1)M/n$,
+and each confined non-core element $<(k-2)\theta/(\eta n)$. If the cores coincide, $k-1$ non-core elements are
+confined; otherwise $k-2$. Hence
+\[
+\Pr[E\setminus\mathcal X]\le(e\cdot k!)^2\Big[\tfrac{(k-1)M}{n}\Big(\tfrac{(k-2)\theta}{\eta n}\Big)^{k-1}
++\Big(\tfrac{(k-1)M}{n}\Big)^2\Big(\tfrac{(k-2)\theta}{\eta n}\Big)^{k-2}\Big]
+\le\Lambda_kM^2(\theta/\eta)^{k-1}/n^k.\qedhere
+\]
+\end{proof}
+
+\begin{proof}[Proof of Theorem~\ref{thm:main}]
+Let $\Phi$ be a monotone circuit for $\kInt_{n,d}$. As for Theorem~\ref{thm:three}, the output approximator $F$
+satisfies $F\ge\Phi$ off the $\Do$-errors and $F\le\Phi$ off the $\Dz$-errors. Per gate, $\varepsilon_0\le \Lambda_kM(\delta^t+\eta^t)/n+\Lambda_kM^2(\theta/\eta)^{k-1}/n^k\le
+\Lambda_kn^{-k+\varepsilon/2}$, and $\varepsilon_1\le(1-\delta)^M+\Lambda_kMn^{k-3}e^{-\theta}\le
+\Lambda_kn^k\exp(-n^{\min(\varepsilon/16,\,\varepsilon/(8(k-1)))})$. For $k=2$ there are no frames, so the second term is
+0. If $F\equiv0$ then $\frac12\le|\Phi|\varepsilon_1$. Otherwise every conjunct meets $T$, so $\Pr_{\Dz}[F=0]<(k-1)M/n
+\le\frac12$ and $\frac12\le|\Phi|\varepsilon_0$. Hence $|\Phi|\ge n^{k-\varepsilon}$ for large $n$. For the last sentence of the
+theorem, given $d=\omega(\log n)$ and $\varepsilon>0$, eventually $d\ge c(\varepsilon)\log n$.
+\end{proof}
+
+\section{Limits of routes to refuting OVH}\label{sec:trackA}
+
+\subsection{Block-CNF satisfiability for constant block size}
+This section uses its own notation, independent of \S\S\ref{sec:main}--\ref{sec:general}. A \emph{block-CNF} has
+variables $x_\ell\in[D]$ ($\ell\le k$) and clauses that are disjunctions of block-literals $[x_\ell\in A]$ with
+$A\subseteq[D]$. Let $v:=k\lceil\log_2D\rceil$. $k$-OV with $D$ vectors per list in dimension $d$ is a block-CNF with
+$d$ clauses, whose solutions are the orthogonal $k$-tuples. We assume:
+\begin{itemize}
+  \item[(H)] for every $q$ and $\sigma>0$, $q$-SAT on $v$ variables is decidable in $O(2^{\sigma v})$ time.
+\end{itemize}
+By the sparsification lemma~\cite{IPZ01}, (H) is equivalent to the failure of ETH. So it holds if the claimed
+algorithms for 3-SAT~\cite{OpenAI26,Anthropic26} are correct.
+
+\begin{theorem}[conditional on (H)]\label{thm:block}
+For fixed $D$, $\Delta$ and $\sigma>0$, satisfiability of block-CNFs with at most $\Delta v$ clauses can be decided
+in $O(2^{\sigma v})$ time. In particular, $k$-OV with a constant number $D$ of vectors per list in dimension
+$\Delta k\lceil\log_2D\rceil$ can be decided in $D^{o(k)}$ time as $k\to\infty$.
+\end{theorem}
+\begin{proof}[Proof sketch]
+We may assume each clause has at most one literal per variable and each literal is consistent with the current domain
+$R_\ell$ of its variable. Fix a width $w$. While some clause has more than $w$ literals, pick $w$ of them, $C'$, and
+branch: either some literal of $C'$ holds, and the clause is replaced by $C'$; or every literal of $C'$ fails, which
+strictly shrinks $w$ domains. With the measure $\sum_\ell\log_2|R_\ell|$ the number of leaves is $2^{v\lambda(w)}$,
+where $\lambda(w)\to0$. At a leaf, every clause has width $\le w$. Writing each $x_\ell$ in binary turns the leaf into a
+$(w\lceil\log_2D\rceil)$-CNF on $v$ variables with $O(\Delta vD^w)$ clauses, together with clauses excluding values
+outside $R_\ell$, which (H) decides in $2^{\sigma'v}$ time. Choose $w$ and then $\sigma'$.
+\end{proof}
+Theorem~\ref{thm:block} concerns constant $D$ only. OVH concerns $D=n\to\infty$, where it says nothing.
+
+\subsection{Linear deformation designs (heuristic)}\label{sec:deform}
+We have not defined a deformation design or its cost precisely, so this subsection is a heuristic, not a theorem.
+Consider the deformation/Taylor-interpolation framework of~\cite{OpenAI26} applied to
+$\#\OV=\sum_{i,j}\prod_o(1-\alpha_o\beta_o)$ for two lists of $N$ vectors in dimension $d=c\log_2N$. Consider designs
+with linear measurements of rank at most $r$ and deformation degree $R$ over $Q$ points.
+\begin{itemize}
+  \item A corank argument shows that at each point at least $d-2r$ input variables move, hence at least $(d-2r)/2$
+    coordinates.
+  \item A determinant argument ($(T-t)^\kappa$ divides $\det\Pi(T)$, whose degree is $\le dR$) gives
+    $Q(d-2r)\le2dR$, which forces Taylor order $q\ge d-2r-1$.
+  \item If sub-quadratic design sums need $r\le\log_3N\approx0.631\log_2N$, a threshold we have not justified
+    rigorously, then inclusion--exclusion over coordinates enumerates $\ge2^{(d-2r)/2-1}$ subsets of cost $\ge N$ each,
+    in total $N^{1+(c-1.262)/2-o(1)}$. This is $N^{2+\Omega(1)}$ for $c>2+2/\log_23\approx3.26$.
+  \item If the inclusion--exclusion ranges over the $2d$ input variables, the count is $\ge2^{d-2r-1}$, giving
+    $N^{c-0.262-o(1)}$, which is $N^{2+\Omega(1)}$ already for $c>1+2/\log_23\approx2.26$.
+\end{itemize}
+
+\subsection{Equality rank of disjointness matrices}
+Williams~\cite{Wil24} showed that if $\DISJ_k$ (with entries $[x\cap y=\emptyset]$) has equality rank $2^{o(k)}$, then
+OVH fails. The equality rank $r(k)$ is the least $r$ with $\DISJ_k=\sum_{i\le r}\alpha_iE_i$, where the $E_i$ are
+equality matrices $[u(i)=v(j)]$. Williams's SAT searches~\cite{Wil24} found decompositions with all coefficients
+equal to 1, which give $r(k)\le k$ for $k\le5$. Our search allows arbitrary real coefficients. For fixed $r$, feasibility
+depends only on the \emph{type} of $\alpha$ (which subset sums equal 0 or 1). We enumerate the finitely many realizable
+types exactly and solve one SAT instance per type (\code{code/equality\_rank\_sat.py}).
+
+\begin{theorem}[computer-assisted]\label{thm:eqrank}
+Over $\R$: $r(1)=2$, $r(2)=2$, $r(3)=3$, $r(4)=4$. For $k=4$, $r=3$ there are 32 types: 8 are trivially infeasible and
+24 are UNSAT.
+\end{theorem}
+\paragraph{Certificates.} Explicit partitions of the ones of $\DISJ_k$ into $2,2,3,4,5$ equality matrices for
+$k=1,\dots,5$ (certifying $r(1),r(2)\le2$, $r(3)\le3$, $r(4)\le4$ and Williams's $r(5)\le5$) are in
+\code{data/upper\_bound\_certificates.log}. \code{code/verify\_certificates.py} checks them without the search code.
+The lower bounds rest on the SAT runs.
+
+\begin{proposition}[computer-assisted]\label{prop:k5}
+$4\le r(5)\le5$, where the upper bound is due to Williams~\cite{Wil24}. Of the 168 types for $r=4$, 20 are trivial and 147 are UNSAT. The remaining type is a pure partition.
+So $r(5)=4$ iff the ones of $\DISJ_5$ split into 4 equality matrices. This is \emph{open}: it was not decided by
+several hours of CDCL search, including a cube-and-conquer run in which all 24 cubes hit a 900\,s limit.
+\end{proposition}
+
+\begin{proposition}\label{prop:lp}
+The fractional cover number of $\DISJ_k$ by equality submatrices is $7/4$, $23/10$, $\approx2.692$ and
+$\approx3.306$ for $k=2,3,4,5$ (certified lower bounds $7/4$, $23/10$, $13471/5005$, $8255/2499$). Weights of either
+sign, valid for partitions, give the same values. So weighting arguments cannot prove $r(4)\ge4$ or $r(5)\ge5$, even
+for partitions. The computation is in \code{code/fractional\_cover.py}.
+\end{proposition}
+
+Ye's degree bound~\cite{Ye26}, combined with~\cite[Thm~7.2]{AL25}, counts OV in $n\cdot2^{(0.3199+o(1))d}\approx
+n\cdot1.248^d$ time, improving the $n\cdot1.26^d$ of~\cite{AL25}. Beating it with a constant-size decomposition of $\DISJ_k$ needs
+$r(k)<1.248^k$. Since $\DISJ_4$ is a submatrix of $\DISJ_k$, $r(k)\ge r(4)=4$ for $k\ge4$, so the first chances are $r(7)=4$ and $r(8)=5$.
+
+\section{Verification status}
+\begin{center}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+Result & Verification so far\\
+\midrule
+Theorem~\ref{thm:main} & Full proof; 3 AI referee reads, minor fixes applied (constants, the count of shapes in
+Lemma~\ref{lem:ork}, wording), then one further AI read. Brute-force checks in \code{code/general\_k\_checks.py}:
+Lemma~\ref{lem:dom} ($k\le8$, $|Y|\le5$), the reveal order of Lemma~\ref{lem:ork} ($k\le6$), the parameters ($k\le7$).
+\textbf{No human or formal check.}\\
+Theorem~\ref{thm:three} & Full proof; 3 AI referee reads, minor fixes applied. \textbf{No human or formal check.}\\
+Theorem~\ref{thm:block} & Proof sketch; not reviewed. Conditional on (H), i.e.\ on~\cite{OpenAI26,Anthropic26}
+via~\cite{IPZ01}.\\
+\S\ref{sec:deform} & Heuristic only; not a theorem.\\
+Theorem~\ref{thm:eqrank}, Proposition~\ref{prop:k5} & Upper bounds: explicit certificates, checked independently.
+Lower bounds: CaDiCaL~1.9.5, logs in \code{data/}; no DRAT certificates; type enumeration not independently
+checked.\\
+Proposition~\ref{prop:lp} & Floating-point LP; lower bounds have exact certificates, optimality does not.\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{Open problems}
+\begin{enumerate}
+  \item Human verification of Theorem~\ref{thm:main}, especially Lemma~\ref{lem:ork} (the reveal order) and
+    invariant~(I); ideally also a Lean formalization.
+  \item A check of the literature after July 2026 for monotone $k$-OV bounds.
+  \item Unbalanced OV: confirm that the argument of~\cite{CLSS26} directly gives $(nN)^{1-o(1)}$ for lists of sizes
+    $n$ and $N$.
+  \item The sharp monotone trade-off for two lists: is any monotone circuit subquadratic at some $c>1$?
+  \item Decide $r(5)$, e.g.\ by lookahead cubing with DRAT proofs.
+\end{enumerate}
+
+\section*{Use of AI}
+The author chose the problem and directed the sessions; Claude (Anthropic, Claude Opus 5.5) did the literature
+search, proofs, experiments, code and write-up. Review was by separate instances of the same model.
+
+\begin{thebibliography}{99}\small
+\bibitem{OpenAI26} OpenAI. \emph{The Exponential Time Hypothesis is False.} Preprint, 25 Oct 2026, github.com/openai/math.
+\bibitem{Anthropic26} Anthropic. \emph{A $2^{o(n)}$ Time Algorithm for 3-SAT.} Lean-formalized preprint, Oct 2026,
+  github.com/anthropics/formal-math.
+\bibitem{CLSS26} T.~Choudhury, N.~Limaye, K.~Sreenivasaiah, S.~Srinivasan. \emph{New and Improved Concrete Lower Bounds
+  for Orthogonal Vectors.} arXiv:2607.23799, 2026.
+\bibitem{Wil05} R.~Williams. \emph{A new algorithm for optimal 2-constraint satisfaction and its implications.} TCS, 2005.
+\bibitem{Wil24} R.~Williams. \emph{The Orthogonal Vectors Conjecture and Non-Uniform Circuit Lower Bounds.} FOCS 2024.
+\bibitem{AL25} Alman and Li. \emph{Kronecker Powers, Orthogonal Vectors, and the Asymptotic Spectrum.} arXiv:2509.14489, 2025.
+\bibitem{Ye26} L.~Ye. \emph{Improved Depth-2 Linear Circuits for Disjointness via Quenched Lyapunov Exponents.}
+  arXiv:2603.15565 (v2), 2026.
+\bibitem{IPZ01} R.~Impagliazzo, R.~Paturi, F.~Zane. \emph{Which problems have strongly exponential complexity?} JCSS 63(4), 2001.
+\bibitem{Lin26} H.~Lin. \emph{Fine-Grained AC$^0$ Lower Bounds for $k$-OV, $k$-XOR, and $k$-SUM via Colored Subgraph
+  Isomorphism.} arXiv:2608.08578, 2026.
+\bibitem{Raz85} A.~Razborov. \emph{Lower bounds on the monotone complexity of some Boolean functions.} 1985.
+\bibitem{Raz85b} A.~Razborov. \emph{A lower bound on the monotone network complexity of the logical permanent.}
+  Math.\ Notes 37(6), 1985.
+\bibitem{AB87} N.~Alon, R.~Boppana. \emph{The monotone circuit complexity of Boolean functions.} Combinatorica, 1987.
+\bibitem{Tar88} \'E.~Tardos. \emph{The gap between monotone and non-monotone circuit complexity is exponential.} Combinatorica, 1988.
+\end{thebibliography}
+
+\end{document}

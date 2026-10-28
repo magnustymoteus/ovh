@@ -1,0 +1,7 @@
+Lemma 8: one coordinate k<=8, |Y|<=5: holds iff |S|+|Y|<=k-1; two coordinates k<=6: OK; scalar: OK
+Lemma 13, k=2: 2 shape pairs <= (e*k!)^2 = 30; reveal order OK
+Lemma 13, k=3: 36 shape pairs <= (e*k!)^2 = 266; reveal order OK
+Lemma 13, k=4: 792 shape pairs <= (e*k!)^2 = 4256; reveal order OK
+Lemma 13, k=5: 23640 shape pairs <= (e*k!)^2 = 106402; reveal order OK
+Lemma 13, k=6: 951120 shape pairs <= (e*k!)^2 = 3830487; reveal order OK
+Parameters: A_k = 2k^2 2^k suffices (k<=8); exponent inequalities and c bound hold (k<=7)
