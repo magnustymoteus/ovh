@@ -1,0 +1,11 @@
+# LaTeX build artefacts
+*.aux
+*.log
+!data/*.log
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+__pycache__/
+.venv/
+data/cubes_k5_r4/tmp/

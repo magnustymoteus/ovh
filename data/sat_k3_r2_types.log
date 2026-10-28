@@ -1,0 +1,7 @@
+k=3 r=2: 9 closed types up to term permutation (4 trivially infeasible), timeout=600.0s, jobs=8
+  type Z= | O=01 [cadical195]: UNSAT [0.2s]
+  type Z= | O=11 [cadical195]: UNSAT [0.2s]
+  type Z=01 | O=10 11 [cadical195]: UNSAT [0.2s]
+  type Z= | O=01 10 [cadical195]: UNSAT [0.2s]
+  type Z=11 | O=01 [cadical195]: UNSAT [0.2s]
+RESULT k=3 r=2: {'sat': None, 'unsat': 5, 'unknown': 0}

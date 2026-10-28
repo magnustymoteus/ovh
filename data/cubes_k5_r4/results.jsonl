@@ -1,0 +1,24 @@
+{"id": "c000012", "prefix": [0, 0, 0, 0, 1, 2], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c000011", "prefix": [0, 0, 0, 0, 1, 1], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c000001", "prefix": [0, 0, 0, 0, 0, 1], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c000111", "prefix": [0, 0, 0, 1, 1, 1], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c000000", "prefix": [0, 0, 0, 0, 0, 0], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c000112", "prefix": [0, 0, 0, 1, 1, 2], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c000123", "prefix": [0, 0, 0, 1, 2, 3], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c001111", "prefix": [0, 0, 1, 1, 1, 1], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c011111", "prefix": [0, 1, 1, 1, 1, 1], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c001122", "prefix": [0, 0, 1, 1, 2, 2], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c001112", "prefix": [0, 0, 1, 1, 1, 2], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c001123", "prefix": [0, 0, 1, 1, 2, 3], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c011123", "prefix": [0, 1, 1, 1, 2, 3], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c011122", "prefix": [0, 1, 1, 1, 2, 2], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c011112", "prefix": [0, 1, 1, 1, 1, 2], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c00001200", "prefix": [0, 0, 0, 0, 1, 2, 0, 0], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c011223", "prefix": [0, 1, 1, 2, 2, 3], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c00001201", "prefix": [0, 0, 0, 0, 1, 2, 0, 1], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c00001202", "prefix": [0, 0, 0, 0, 1, 2, 0, 2], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c00001203", "prefix": [0, 0, 0, 0, 1, 2, 0, 3], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c00001210", "prefix": [0, 0, 0, 0, 1, 2, 1, 0], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c00001211", "prefix": [0, 0, 0, 0, 1, 2, 1, 1], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c00001212", "prefix": [0, 0, 0, 0, 1, 2, 1, 2], "status": "SPLIT", "cpu": 900, "exit": -24}
+{"id": "c00001213", "prefix": [0, 0, 0, 0, 1, 2, 1, 3], "status": "SPLIT", "cpu": 900, "exit": -24}
